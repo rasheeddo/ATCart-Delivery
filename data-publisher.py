@@ -35,53 +35,94 @@ gps_pub_sock.setblocking(0)
 # arm_pub_sock.bind(("0.0.0.0", arm_PUB_PORT))
 # arm_pub_sock.setblocking(0)
 
-################################################################################################
-cur_dir = os.getcwd()
-out_file_path = os.path.join(cur_dir,"rover_status.txt") #"/home/nvidia/ATCart-momo-New/rover_status.txt"
+LOAD_WP_PORT = 7777
+load_wp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+load_wp_sock.bind(("0.0.0.0", LOAD_WP_PORT))
+load_wp_sock.setblocking(0)
+
+################################### Files #############################################
+root_path = os.getcwd()
+out_file_path = os.path.join(root_path,"rover_status.txt") #"/home/nvidia/ATCart-momo-New/rover_status.txt"
 rover_status ={
 				"gps" : {
 					"lat" : 0.0, 
 					"lng" : 0.0, 
 					"yaw" : 0.0, 
 					"status" : 0
-					}
+					},
+				"wp" : []
 				}
 
-# print("Started gps publisher thread")
-while True:
 
-	try:
-		data, addr = gps_pub_sock.recvfrom(1024)
-		# print("data len", len(data))
-		gps_data = pickle.loads(data)
-	except socket.error:
-		pass
-	else:
-		# print(gps_data)
-		rover_status['gps']['lat'] = gps_data['lat']
-		rover_status['gps']['lng'] = gps_data['lng']
-		rover_status['gps']['yaw'] = gps_data['yaw']
-		rover_status['gps']['status'] = gps_data['status']
+wp_json_file_name = "JSON_MISSION.txt"
+wp_json_file_path = os.path.join(root_path, wp_json_file_name)
 
-	# try:
-	# 	data, addr = arm_pub_sock.recvfrom(1024)
-	# 	# print("data len", len(data))
-	# 	arm_data = pickle.loads(data)
-	# except socket.error:
-	# 	pass
-	# else:
-	# 	# print(arm_data)
-	# 	rover_status['arm']['depth'] = arm_data['depth']
-	# 	rover_status['arm']['height'] = arm_data['height']
+#################################### Loop #############################################
 
+print("Started gps publisher thread")
+prev_time = time.time()
+try:
+	while True:
 
+		######################################
+		### Get gps data from cube process ###
+		######################################
+		try:
+			data, addr = gps_pub_sock.recvfrom(1024)
+			# print("data len", len(data))
+			gps_data = pickle.loads(data)
+		except socket.error:
+			pass
+		else:
+			# print(gps_data)
+			rover_status['gps']['lat'] = gps_data['lat']
+			rover_status['gps']['lng'] = gps_data['lng']
+			rover_status['gps']['yaw'] = gps_data['yaw']
+			rover_status['gps']['status'] = gps_data['status']
 
-	print(rover_status)
+		##################################
+		### Get load flag from control ###
+		##################################
+		try:
+			data, addr = load_wp_sock.recvfrom(1024)
+			# print("data len", len(data))
+			load_data = pickle.loads(data)
+		except socket.error:
+			pass
+		else:
+			if load_data == "GOT_LOAD":
+				print("GOT_LOAD")
+				file = open(wp_json_file_path, 'r')
+				lines = file.read().splitlines()
+				rover_status['wp']= json.loads(lines[0])
+				file.close()
+			else:
+				print("Got strange string %s" %(load_data))
 
-	file = open(out_file_path, "w+")
-	json_data = json.dumps(rover_status)
-	file.write(json_data)
-	cmd1 = 'echo $(cat rover_status.txt) > {:s}'.format(port)
-	subprocess.run(cmd1, shell=True, check=True)
+		# print(rover_status)
 
-	time.sleep(0.01)
+		#####################################
+		### Publish data at specific rate ###
+		#####################################
+		## 0.01 -> 100 Hz
+		## 0.05 -> 20  Hz
+		## 0.1  -> 10  Hz
+		## 0.5  -> 2   Hz
+		if ( (time.time() - prev_time) > 0.1):
+			print(rover_status)
+			file = open(out_file_path, "w+")
+			json_data = json.dumps(rover_status)
+			file.write(json_data)
+			cmd1 = 'echo $(cat rover_status.txt) > {:s}'.format(port)
+			subprocess.run(cmd1, shell=True, check=True)
+			prev_time = time.time()
+
+			## we send loaded 'wp' only one time, and clear data out 
+			if len(rover_status['wp']) > 0:
+				rover_status['wp'] = []
+
+		time.sleep(0.001)
+		# time.sleep(0.05)
+except Exception as e:
+	print("ERROR as -> %s" %e)
+	quit()

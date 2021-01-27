@@ -20,10 +20,10 @@ cube_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 cube_sock.bind(("0.0.0.0", CUBEPILOT_PORT))
 cube_sock.setblocking(0)
 
-WP_PORT = 7777
-wp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-wp_sock.bind(("0.0.0.0", WP_PORT))
-wp_sock.setblocking(0)
+# WP_PORT = 7777
+# wp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+# wp_sock.bind(("0.0.0.0", WP_PORT))
+# wp_sock.setblocking(0)
 
 GPS_PUB_PORT = 8888
 gps_pub_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -379,20 +379,23 @@ while True:
 			vehicle.channels.overrides['1'] = steering_pwm
 			vehicle.channels.overrides['2'] = throttle_pwm
 
+		if data['GOT_WP'] == True:
+			upload_mission_from_file()
+
 	##############################################
 	############### Get WPs Data ###############
 	##############################################
-	try:
-		data, addr = wp_sock.recvfrom(1500)
-	except socket.error:
-		pass
-	else:
-		parse_data = pickle.loads(data)
-		print(parse_data)
-		if parse_data == "GOT_WP":
-			upload_mission_from_file()
-		else:
-			print("Got strange string from wp_sock as %s" %(parse_data))
+	# try:
+	# 	data, addr = wp_sock.recvfrom(1500)
+	# except socket.error:
+	# 	pass
+	# else:
+	# 	parse_data = pickle.loads(data)
+	# 	print(parse_data)
+	# 	if parse_data == "GOT_WP":
+	# 		upload_mission_from_file()
+	# 	else:
+	# 		print("Got strange string from wp_sock as %s" %(parse_data))
 
 	##############################################
 	############### Get LIDAR Data ###############
