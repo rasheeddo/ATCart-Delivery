@@ -29,7 +29,16 @@ def save_collected_wps(file,lat_array,lon_array):
 	corrected_wps_file.write("QGC WPL 110\n")
 
 	for i in range(len(lat_array)):
-		corrected_wps_file.write('{:d}'.format(i))
+		if i == 0:
+			corrected_wps_file.write('{:d}'.format(i))
+			corrected_wps_file.write("\t0\t3\t16\t0\t5\t0\t0\t")
+			corrected_wps_file.write('{:16}'.format(lat_array[i]))
+			corrected_wps_file.write("\t")
+			corrected_wps_file.write('{:16}'.format(lon_array[i]))
+			corrected_wps_file.write("\t0\t1")
+			corrected_wps_file.write("\n")
+
+		corrected_wps_file.write('{:d}'.format(i+1))
 		corrected_wps_file.write("\t0\t3\t16\t0\t5\t0\t0\t")
 		corrected_wps_file.write('{:16}'.format(lat_array[i]))
 		corrected_wps_file.write("\t")
@@ -311,110 +320,9 @@ while True:
 			print(str_buffer)
 			dec = json.loads(str_buffer)
 
-			############################
-			#### Control by gamepad ####
-			############################
-
-			# if len(str_buffer) > 400:
-			# if "ID" in dec:
-			# 	#####################
-			# 	### Mode Changing ###
-			# 	#####################
-			# 	if (dec["BUTTONS"]["#02"]) == 1:
-			# 		if unlock:
-			# 			print("MANUAL")
-			# 			cube_pilot_data['MODE'] = "MANUAL"
-			# 			unlock = False
-			# 	elif (dec["BUTTONS"]["#01"]) == 1:
-			# 		if unlock:
-			# 			print("HOLD")
-			# 			cube_pilot_data['MODE'] = "HOLD"
-			# 			unlock = False
-			# 	elif (dec["BUTTONS"]["#00"]) == 1:
-			# 		if unlock:
-			# 			print("AUTO")
-			# 			cube_pilot_data['MODE'] = "AUTO"
-			# 			unlock = False
-
-			# 	####################
-			# 	### Arm / Disarm ###
-			# 	####################
-			# 	elif dec["BUTTONS"]["#03"] == 1 and screen_prev_arm_state == 1:
-			# 		if unlock:
-			# 			print("ARMDISARM")
-			# 			if prev_arm_state == 1:
-			# 				print("here")
-			# 				cube_pilot_data['ARMED'] = 0
-			# 				prev_arm_state = 0
-			# 			else:
-			# 				cube_pilot_data['ARMED'] = 1
-			# 				prev_arm_state = 1
-			# 			unlock = False
-
-			# 	#########################
-			# 	### Direction Control ###
-			# 	#########################
-			# 	elif (dec["BUTTONS"]["#04"] == 1):
-			# 		if unlock:
-			# 			print("TURNLEFT45")
-			# 			cube_pilot_data['MODE'] = "GUIDED"
-			# 			cube_pilot_data['TURN_DIR'] = "LEFT45" 
-			# 			unlock = False
-
-			# 	elif (dec["BUTTONS"]["#06"] == 1):
-			# 		if unlock:
-			# 			print("TURNLEFT90")
-			# 			cube_pilot_data['MODE'] = "GUIDED"
-			# 			cube_pilot_data['TURN_DIR'] = "LEFT90"
-			# 			unlock = False
-
-			# 	elif (dec["BUTTONS"]["#05"] == 1):
-			# 		if unlock:
-			# 			print("TURNRIGHT45")
-			# 			cube_pilot_data['MODE'] = "GUIDED"
-			# 			cube_pilot_data['TURN_DIR'] = "RIGHT45"
-			# 			unlock = False
-
-			# 	elif (dec["BUTTONS"]["#07"] == 1):
-			# 		if unlock:
-			# 			print("TURNRIGHT90")
-			# 			cube_pilot_data['MODE'] = "GUIDED"
-			# 			cube_pilot_data['TURN_DIR'] = "RIGHT90"
-			# 			unlock = False
-
-			# 	elif (dec["BUTTONS"]["#16"] == 1):
-			# 		if unlock:
-			# 			print("TURN180")
-			# 			cube_pilot_data['MODE'] = "GUIDED"
-			# 			cube_pilot_data['TURN_DIR'] = "U180"
-			# 			unlock = False
-			# 	else:
-			# 		unlock = True
-
-			# 	################
-			# 	### Joystick ###
-			# 	################
-			# 	STR_val = dec["AXES"]["#02"]
-			# 	THR_val = (-1)*dec["AXES"]["#01"]
-
-			# 	if cube_pilot_data['MODE'] == "MANUAL":
-			# 		cube_pilot_data['STR_VAL'] = STR_val
-			# 		cube_pilot_data['THR_VAL'] = THR_val
-			# 	else:
-			# 		cube_pilot_data['STR_VAL'] = 0.0
-			# 		cube_pilot_data['THR_VAL'] = 0.0
-
-		
-			# 	### Reset ###
-			# 	cube_pilot_data['FORWARD'] = 0
-			# 	cube_pilot_data['LEFT'] = 0
-			# 	cube_pilot_data['RIGHT'] = 0
-
-
 			####################################
 			#### when press console buttons ####
 			####################################
-			# else:
 
 			if (dec["MODE"] == "MANUAL"):
 				print("WITHOUT_GAMEPAD : MANUAL")
@@ -542,11 +450,10 @@ while True:
 				lon_list = []
 				nested_array = []
 
-				# wp_packet = pickle.dumps("GOT_WP")
-				# wp_sock.sendto(wp_packet,("127.0.0.1", WP_PORT))
 				cube_pilot_data['GOT_WP'] = True
 
 			elif dec["LOAD"] == 1:
+				print("GOT LOAD")
 				load_wp_packet = pickle.dumps("GOT_LOAD")
 				load_wp_sock.sendto(load_wp_packet,("127.0.0.1", LOAD_WP_PORT))
 

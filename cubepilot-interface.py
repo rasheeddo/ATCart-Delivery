@@ -20,11 +20,6 @@ cube_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 cube_sock.bind(("0.0.0.0", CUBEPILOT_PORT))
 cube_sock.setblocking(0)
 
-# WP_PORT = 7777
-# wp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-# wp_sock.bind(("0.0.0.0", WP_PORT))
-# wp_sock.setblocking(0)
-
 GPS_PUB_PORT = 8888
 gps_pub_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -217,6 +212,9 @@ def readmission(aFileName):
 				ln_autocontinue=int(linearray[11].strip())
 				cmd = Command( 0, 0, 0, ln_frame, ln_command, ln_currentwp, ln_autocontinue, ln_param1, ln_param2, ln_param3, ln_param4, ln_param5, ln_param6, ln_param7)
 				missionlist.append(cmd)
+
+	f.close()
+
 	return missionlist
 
 def upload_mission_from_file():
@@ -236,12 +234,21 @@ def upload_mission_from_file():
 		# cmds = vehicle.commands
 		cmds.clear()
 		#Add new mission to vehicle
+		# print("missionlist", missionlist)
 		for command in missionlist:
-			# print(command)
+			# print("command", command)
 			cmds.add(command)
-		
-		vehicle.commands.upload()
-		print('MISSION Uploaded')
+
+		## sometime there is error of Nonetype not iterable
+		## but the mission already uploaded, so just pass it
+		try:
+			vehicle.commands.upload()
+			print('MISSION Uploaded')
+		except Exception as e:
+			print("Exception!!! error as -> %s, but don't care..." %e)
+			print('MISSION Uploaded with some exception')
+			pass
+
 		return True
 	else:
 		print("ERROR missing MISSION.txt file")
@@ -252,23 +259,13 @@ def change_flight_mode(_mode):
 	global current_mode
 
 	if _mode != None:
-		# if _mode == "AUTO":
-		# 	success = upload_mission_from_file()
-		# 	if success:
-		# 		print("Success")
-		# 		vehicle.mode = "AUTO"
-		# 	else:
-		# 		print("Failed")
-		# else:
-		# 	if current_mode != _mode:
-		# 		vehicle.mode = _mode
-		# 	current_mode = _mode
 		if current_mode != _mode:
 			vehicle.mode = _mode
 		current_mode = _mode
 
 def send_obstacle_distance_message():
 	global current_time_us, distances, min_distance, max_distance, angle_offset, increment_f
+
 	if angle_offset is None or increment_f is None:
 		print("Please call set_obstacle_distance_params before continue")
 	else:
@@ -317,133 +314,123 @@ pwm_mid = 1520
 STR_val = 0.0
 THR_val = 0.0
 got_data_time = time.time()
-while True:
-	# startTime = time.time()
-	current_time_us = int(round(time.time() * 1000000))
-	##############################################
-	############## Get Console Data ##############
-	##############################################
-	try:
-		data, addr = cube_sock.recvfrom(1024)
-		# print("data len", len(data))
-		data = pickle.loads(data)
-		got_data_time = time.time()
-	except socket.error:
-		last_got_period = time.time() - got_data_time
-		# print("Period {:.4f} No data arrived.. STR {:} THR {:}".format(last_got_period, STR_val, THR_val))
-		if (last_got_period > 0.5) and (STR_val != 0 or THR_val != 0):
-			print("DANGER...gamepad data is piling... STR was {:} THR was {:}".format(STR_val,THR_val))
-			STR_val = 0.0
-			THR_val = 0.0
-			vehicle.channels.overrides['1'] = pwm_mid
-			vehicle.channels.overrides['2'] = pwm_mid
-		pass
-	else:
-		print(data)
+try:
+	while True:
+		# startTime = time.time()
+		current_time_us = int(round(time.time() * 1000000))
+		##############################################
+		############## Get Console Data ##############
+		##############################################
+		try:
+			data, addr = cube_sock.recvfrom(1024)
+			# print("data len", len(data))
+			data = pickle.loads(data)
+			got_data_time = time.time()
+		except socket.error:
+			last_got_period = time.time() - got_data_time
+			# print("Period {:.4f} No data arrived.. STR {:} THR {:}".format(last_got_period, STR_val, THR_val))
+			if (last_got_period > 0.5) and (STR_val != 0 or THR_val != 0):
+				print("DANGER...gamepad data is piling... STR was {:} THR was {:}".format(STR_val,THR_val))
+				STR_val = 0.0
+				THR_val = 0.0
+				vehicle.channels.overrides['1'] = pwm_mid
+				vehicle.channels.overrides['2'] = pwm_mid
+			pass
+		else:
+			print(data)
 
-		if data['ARMED'] != prev_arm_state:
-			if data['ARMED'] == 1:
-				vehicle.armed = True
-			else:
-				vehicle.armed = False
+			if data['ARMED'] != prev_arm_state:
+				if data['ARMED'] == 1:
+					vehicle.armed = True
+				else:
+					vehicle.armed = False
 
-		prev_arm_state = data['ARMED']
+			prev_arm_state = data['ARMED']
 
-		change_flight_mode(data['MODE'])
+			change_flight_mode(data['MODE'])
 
-		if current_mode == "GUIDED":
-			if data['TURN_DIR'] is not None:
-				if data['TURN_DIR'] == "LEFT45":
-					turn(-45)
-				elif data['TURN_DIR'] == "LEFT90":
-					turn(-90)
-				elif data['TURN_DIR'] == "RIGHT45":
-					turn(45)
-				elif data['TURN_DIR'] == "RIGHT90":
-					turn(90)
-				elif data['TURN_DIR'] == "U180":
-					turn(180)
+			if current_mode == "GUIDED":
+				if data['TURN_DIR'] is not None:
+					if data['TURN_DIR'] == "LEFT45":
+						turn(-45)
+					elif data['TURN_DIR'] == "LEFT90":
+						turn(-90)
+					elif data['TURN_DIR'] == "RIGHT45":
+						turn(45)
+					elif data['TURN_DIR'] == "RIGHT90":
+						turn(90)
+					elif data['TURN_DIR'] == "U180":
+						turn(180)
 
-			if data['FORWARD'] != 0:
-				goForward(int(data['FORWARD']))
-			elif data['LEFT'] != 0:
-				goLeft(int(data['LEFT']))
-			elif data['RIGHT'] != 0:
-				goRight(int(data['RIGHT']))
+				if data['FORWARD'] != 0:
+					goForward(int(data['FORWARD']))
+				elif data['LEFT'] != 0:
+					goLeft(int(data['LEFT']))
+				elif data['RIGHT'] != 0:
+					goRight(int(data['RIGHT']))
 
-		elif current_mode == "MANUAL":
-			STR_val = data['STR_VAL']
-			THR_val = data['THR_VAL']
-			steering_pwm = int(round(STR_val*200 + pwm_mid))
-			throttle_pwm = int(round(THR_val*250 + pwm_mid))
-			vehicle.channels.overrides['1'] = steering_pwm
-			vehicle.channels.overrides['2'] = throttle_pwm
+			elif current_mode == "MANUAL":
+				STR_val = data['STR_VAL']
+				THR_val = data['THR_VAL']
+				steering_pwm = int(round(STR_val*200 + pwm_mid))
+				throttle_pwm = int(round(THR_val*250 + pwm_mid))
+				vehicle.channels.overrides['1'] = steering_pwm
+				vehicle.channels.overrides['2'] = throttle_pwm
 
-		if data['GOT_WP'] == True:
-			upload_mission_from_file()
+			if data['GOT_WP'] == True:
+				upload_mission_from_file()
 
-	##############################################
-	############### Get WPs Data ###############
-	##############################################
-	# try:
-	# 	data, addr = wp_sock.recvfrom(1500)
-	# except socket.error:
-	# 	pass
-	# else:
-	# 	parse_data = pickle.loads(data)
-	# 	print(parse_data)
-	# 	if parse_data == "GOT_WP":
-	# 		upload_mission_from_file()
-	# 	else:
-	# 		print("Got strange string from wp_sock as %s" %(parse_data))
+		##############################################
+		############### Get LIDAR Data ###############
+		##############################################
+		try:
+			data, addr = lidar_sock.recvfrom(1500)
+		except socket.error:
+			# distances = np.ones((distances_array_length,), dtype=np.uint16) * (max_distance + 1)
+			pass
+		else:
+			#print(len(data))
+			array_size = len(data)/4
+			
+			## unpack the whole packet into buff (tuple-type)
+			buff = struct.unpack('%df' %(array_size), data)
 
-	##############################################
-	############### Get LIDAR Data ###############
-	##############################################
-	try:
-		data, addr = lidar_sock.recvfrom(1500)
-	except socket.error:
-		# distances = np.ones((distances_array_length,), dtype=np.uint16) * (max_distance + 1)
-		pass
-	else:
-		#print(len(data))
-		array_size = len(data)/4
-		
-		## unpack the whole packet into buff (tuple-type)
-		buff = struct.unpack('%df' %(array_size), data)
+			## first half of buf is angle and second half is dist
+			angle_array = np.asarray(buff[0:int(array_size/2)])
+			dist_array = np.asarray(buff[int(array_size/2):int(array_size)])
 
-		## first half of buf is angle and second half is dist
-		angle_array = np.asarray(buff[0:int(array_size/2)])
-		dist_array = np.asarray(buff[int(array_size/2):int(array_size)])
+			## reverse array because 72 distances in OBSTACLE_DISTANCE
+			## it starts from left side to right side (clockwise), but lidar scan (counter-clockwise)
+			angle_array = angle_array[::-1]
+			dist_array = dist_array[::-1]*100.0  # change to cm unit
+			
+			dist_array = dist_array.astype(np.uint16)	# convert to uint16 for AP
 
-		## reverse array because 72 distances in OBSTACLE_DISTANCE
-		## it starts from left side to right side (clockwise), but lidar scan (counter-clockwise)
-		angle_array = angle_array[::-1]
-		dist_array = dist_array[::-1]*100.0  # change to cm unit
-		
-		dist_array = dist_array.astype(np.uint16)	# convert to uint16 for AP
+			for i in range(len(dist_array)):
+				if dist_array[i] == 0:
+					dist_array[i] = 65535 #max_distance + 1 #
+				elif dist_array[i] > max_distance:
+					dist_array[i] = max_distance + 1
+				else:
+					pass
 
-		for i in range(len(dist_array)):
-			if dist_array[i] == 0:
-				dist_array[i] = 65535 #max_distance + 1 #
-			elif dist_array[i] > max_distance:
-				dist_array[i] = max_distance + 1
-			else:
-				pass
+			distances = np.copy(dist_array)
 
-		distances = np.copy(dist_array)
-
-		# print(distances)
+			# print(distances)
 
 
-	##############################################
-	############## Send to publisher #############
-	##############################################
-	if rover_status:
-		# print("rover_status", rover_status)
-		rover_status_packet = pickle.dumps(rover_status)
-		gps_pub_sock.sendto(rover_status_packet,("127.0.0.1", GPS_PUB_PORT))
+		##############################################
+		############## Send to publisher #############
+		##############################################
+		if rover_status:
+			# print("rover_status", rover_status)
+			rover_status_packet = pickle.dumps(rover_status)
+			gps_pub_sock.sendto(rover_status_packet,("127.0.0.1", GPS_PUB_PORT))
 
 
-	## a little bit of delay, help cpu loads
-	time.sleep(0.001)
+		## a little bit of delay, help cpu loads
+		time.sleep(0.001)
+
+except Exception as e:
+	print("ERROR as -> %s" %e)
+	quit()
