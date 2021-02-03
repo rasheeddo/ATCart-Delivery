@@ -7,21 +7,21 @@ A prototype code to get data from momo/ayame WebRTC to control rover.
 ![](images/cart2.jpeg)
 
 ## Dependencies
-- momo binary file from [here](https://github.com/shiguredo/momo/releases)
-- maestro servo controller from [here](https://github.com/FRC4564/Maestro) to control a door
-- dronekit to communicate to Ardupilot `pip3 install dronekit`
-- YDLidar TG30 to send distance data to Ardupilot for object avoidance [here](https://github.com/rasheeddo/testYDLidar)
-- better to make a usb udev rules for each device
-	`udevadm info --name=/dev/ttyUSBx --attribute-walk` check on idVendor and idProduct
-	create rule by `sudo touch /etc/udev/rules.d/99-usb-serial.rules`
-	put this content in the file, change the symlink name to what your device name 
-	```
-	ACTION=="add", ATTRS{idVendor}=="xxxx", ATTRS{idProduct}=="xxxx", SYMLINK+="u2d2"
-	ACTION=="add", ATTRS{idVendor}=="xxxx", ATTRS{idProduct}=="xxxx",  SYMLINK+="usb_uart"
-	ACTION=="add", ATTRS{idVendor}=="xxxx", ATTRS{idProduct}=="xxxx",  SYMLINK+="ydlidar"
-	```
-	reload rule by `sudo udevadm control --reload-rules`
-	`sudo reboot`
+* momo binary file from [here](https://github.com/shiguredo/momo/releases)
+* maestro servo controller from [here](https://github.com/FRC4564/Maestro) to control a door
+* dronekit to communicate to Ardupilot `pip3 install dronekit`
+* YDLidar TG30 to send distance data to Ardupilot for object avoidance [here](https://github.com/rasheeddo/testYDLidar)
+* better to make a usb udev rules for each device
+	* `udevadm info --name=/dev/ttyUSBx --attribute-walk` check on idVendor and idProduct
+	* create rule by `sudo touch /etc/udev/rules.d/99-usb-serial.rules`
+	* put this content in the file, change the symlink name to what your device name 
+		```
+		ACTION=="add", ATTRS{idVendor}=="xxxx", ATTRS{idProduct}=="xxxx", SYMLINK+="u2d2"
+		ACTION=="add", ATTRS{idVendor}=="xxxx", ATTRS{idProduct}=="xxxx",  SYMLINK+="usb_uart"
+		ACTION=="add", ATTRS{idVendor}=="xxxx", ATTRS{idProduct}=="xxxx",  SYMLINK+="ydlidar"
+		```
+	* reload rule by `sudo udevadm control --reload-rules`
+	* `sudo reboot`
 
 ## Run
 1. You will need to start two pair of /dev/pts/x port by using a scripts `1st_socat.sh` and `2nd_socat.sh` . First pair, `/dev/pts/0` and `/dev/pts/1` would be used wiht momo camera and console data channels. Second pair, `/dev/pts/2` and `/dev/pts/3` would be used for momo gamepad data channel. Once the pseudo ports are available, we can start three of momo with the correct serial port string.
